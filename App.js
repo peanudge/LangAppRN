@@ -1,75 +1,85 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useRef } from "react";
 import styled from "styled-components/native";
-import { Animated, Dimensions, PanResponder } from "react-native";
-
+import { Animated, PanResponder, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 const Container = styled.View`
   flex: 1;
   justify-content: center;
   align-items: center;
-`;
-const Box = styled.View`
-  background-color: tomato;
-  width: 200px;
-  height: 200px;
+  background-color: #00aaff;
 `;
 
-const AnimatedBox = Animated.createAnimatedComponent(Box);
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const AnimatedCard = styled(Animated.createAnimatedComponent(View))`
+  background-color: white;
+  width: 300px;
+  height: 300px;
+  justify-content: center;
+  align-items: center;
+  border-radius: 12px;
+  box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.3);
+`;
 
 export default function App() {
-  const position = useRef(
-    new Animated.ValueXY({
-      x: 0,
-      y: 0,
-    })
-  ).current;
-
-  const opacityValue = position.y.interpolate({
-    inputRange: [-300, 0, 300],
-    outputRange: [1, 0.5, 1],
-  });
-  const borderRadius = position.y.interpolate({
-    inputRange: [-300, 300],
-    outputRange: [100, 0],
-  });
-  const rotation = position.y.interpolate({
-    inputRange: [-300, 300],
-    outputRange: ["-360deg", "360deg"],
-  });
-  const bgColor = position.y.interpolate({
-    inputRange: [-300, 300],
-    outputRange: ["rgb(255,99,71)", "rgb(71, 166,255)"],
-  });
-
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        position.setOffset({
-          x: position.x._value,
-          y: position.y._value,
-        });
+      onPanResponderGrant: () => onPressIn.start(),
+      onPanResponderMove: (_, { dx }) => {
+        position.setValue(dx);
       },
-      onPanResponderMove: (evt, { dx, dy }) => {
-        position.setValue({ x: dx, y: dy });
-      },
-      onPanResponderRelease: () => {
-        position.flattenOffset();
+      onPanResponderRelease: (_, { dx }) => {
+        if (dx < -320) {
+          console.log("dismiss left");
+          Animated.spring(position, {
+            toValue: -500,
+            useNativeDriver: true,
+          }).start();
+        } else if (dx > 320) {
+          console.log("dismiss right");
+          Animated.spring(position, {
+            toValue: 500,
+            useNativeDriver: true,
+          }).start();
+        } else {
+          Animated.parallel([onPressOut, goCenter]).start();
+        }
       },
     })
   ).current;
 
+  const scale = useRef(new Animated.Value(1)).current;
+  const position = useRef(new Animated.Value(0)).current;
+  const rotation = position.interpolate({
+    inputRange: [-250, 250],
+    outputRange: ["-15deg", "15deg"],
+    extrapolate: "clamp",
+  });
+  const onPressIn = Animated.spring(scale, {
+    toValue: 0.95,
+    useNativeDriver: true,
+  });
+  const onPressOut = Animated.spring(scale, {
+    toValue: 1,
+    useNativeDriver: true,
+  });
+  const goCenter = Animated.spring(position, {
+    toValue: 0,
+    useNativeDriver: true,
+  });
   return (
     <Container>
-      <AnimatedBox
+      <AnimatedCard
         {...panResponder.panHandlers}
         style={{
-          backgroundColor: bgColor,
-          borderRadius,
-          opacity: opacityValue,
-          transform: position.getTranslateTransform(),
+          transform: [
+            { scale },
+            { translateX: position },
+            { rotateZ: rotation },
+          ],
         }}
-      />
+      >
+        <Ionicons name="pizza" color="tomato" size={98} />
+      </AnimatedCard>
     </Container>
   );
 }
